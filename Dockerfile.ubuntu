@@ -5,13 +5,18 @@ RUN apt-get update && \
         mime-support \
         cron \
         curl \
+        snap \
         wget && \
     rm -rf /var/lib/apt/lists/* && \ 
     apt-get clean
+RUN snap install helm --classic
 RUN curl -s -L https://github.com/kubernetes/kompose/releases/download/v1.28.0/kompose-linux-amd64 -o /usr/local/bin/kompose && \
     chmod 755 /usr/local/bin/kompose
 RUN wget -qO- https://github.com/arttor/helmify/releases/download/v0.3.22/helmify_0.3.22_Linux_64-bit.tar.gz | tar xfz - -C /usr/local/bin
-RUN mkdir /work && mkdir /work/docker-compose
+RUN chmod 755 /usr/local/bin/helmify
+RUN wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && \
+    chmod 755 /usr/local/bin/yq
+RUN mkdir /work
 
 HEALTHCHECK --start-period=2s --interval=5s --timeout=3s \
   CMD curl -f http://localhost/health || exit 1
@@ -20,5 +25,7 @@ EXPOSE 80
 
 COPY docker_config.json /.filebrowser.json
 COPY filebrowser /
+COPY convert.sh /
+RUN  chmod 755 /convert.sh
 
 ENTRYPOINT [ "/filebrowser" ]
