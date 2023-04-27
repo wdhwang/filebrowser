@@ -35,12 +35,12 @@ mkdir -p $BACK_DIR/$HELM_DIR
 ##################################################
 ### Functions
 function logMessage {
-    DTIME=`date +%Y-%m-%d-%H:%M:%S`
+    DTIME=`date +%Y-%m-%d %H:%M:%S`
     echo "$DTIME:$1: $2" >> $WORK_DIR/$LOG
 }
 
 function exitTask {
-    DTIME=`date +%Y-%m-%d-%H:%M:%S`
+    DTIME=`date +%Y-%m-%d %H:%M:%S`
     if [ ! "$1" = "-" ] ; then
         echo "$DTIME:$1: exit $2" >> $WORK_DIR/$LOG
         echo "" >> $WORK_DIR/$LOG
