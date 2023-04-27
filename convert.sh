@@ -17,6 +17,7 @@ HARBOR_HOST=harbor.my
 HARBOR_PORT=30003
 HARBOR_USER=admin
 HARBOR_PASS=admin
+DEBUG=True
 
 ##################################################
 ### Create all directories
@@ -47,17 +48,21 @@ function exitTask {
     exit $2
 }
 
+##################################################
 # Convert docker-compose.yaml to K8s resource files
 function procDocker2K8s {
     CURDIR=$WORK_DIR/$K8S_DIR
-    logMessage "procDocker2K8s" "Create K8s resource files to '$K8S_DIR' directory."
+    TASKNM=procDocker2K8s
+    logMessage "$TASKNM" "Create K8s resource files to '$K8S_DIR' directory."
     RES=`kompose convert -f $FNAME --with-kompose-annotation=false --out $CURDIR 2>&1`
-    logMessage "procDocker2K8s" "'$RES'"
+    logMessage "$TASKNM" "'$RES'"
     for FN in "$CURDIR"/* ; do
-        #echo $FN
+        if [ "$DEBUG" = True ] ; then
+            logMessage "$TASKNM" "Find[$FN]"
+        fi
         if [[ "$FN" = *"networkpolicy"* ]] ; then
             sed -e 's,true,false,g' -i $FN
-            logMessage "procDocker2K8s" "Change '$FN' configuration value from 'true' to 'false'."
+            logMessage "$TASKNM" "Change '$FN' configuration value from 'true' to 'false'."
             break
         fi
     done
@@ -66,35 +71,46 @@ function procDocker2K8s {
 # Build Helm chart from K8s resource files
 function procK8s2Helm {
     CURDIR=$WORK_DIR/$HELM_DIR
-    logMessage "procK8s2Helm" "Create helm chart files to '$HELM_DIR/$SERVICE' directory."
+    TASKNM=procK8s2Helm
+    logMessage "$TASKNM" "Create helm chart files to '$HELM_DIR/$SERVICE' directory."
     RES=`awk 'FNR==1 && NR!=1  {print "---"}{print}' $WORK_DIR/$K8S_DIR/*.yaml | helmify $CURDIR/$SERVICE 2>&1`
     if [ ! "$RES" = "" ] ; then
-        logMessage "procK8s2Helm" "'$RES'"
+        logMessage "$TASKNM" "'$RES'"
     fi
 }
 
 # Package Helm Chart to package tarball
 function procHelm2Tarball {
     CURDIR=$WORK_DIR/$PACKAGE_DIR
-    logMessage "procHelm2Tarball" "Package helm chart files to '$PACKAGE_DIR' directory."
+    TASKNM=procHelm2Tarball
+    logMessage "$TASKNM" "Package helm chart files to '$PACKAGE_DIR' directory."
     cd $CURDIR
     if [ -d "$WORK_DIR/$HELM_DIR/$SERVICE" ] ; then
         RES=`helm package $WORK_DIR/$HELM_DIR/$SERVICE 2>&1`
         if [ ! "$RES" = "" ] ; then
-            logMessage "procHelm2Tarball" "'$RES'"
-            TARBALL=`echo $RES | awk 'BEGIN {FS=":"} {print $2}'`
+            logMessage "$TASKNM" "'$RES'"
+            TARBALL=`echo $RES | tr -d '[:blank:]' |  awk 'BEGIN {FS=":"} {print $2}'`
+	    if [ "$DEBUG" = True ] ; then
+                logMessage "$TASKNM" "tarball file '$TARBALL'"
+	    fi
 	fi
     else
-        logMessage "procHelm2Tarball" "'$WORK_DIR/$HELM_DIR/$SERVICE' not existed!"
-        exitTask "procHelm2Tarball" 1
+        logMessage "$TASKNM" "'$WORK_DIR/$HELM_DIR/$SERVICE' not existed!"
+        exitTask "$TASKNM" 1
     fi
 }
 
 # Upoad tarball to Harbor
 function uploadTarball {
-    logMessage "uploadTarball" "Upoad tarball '$TARBALL' to Harbor."
-    RES=`curl -s --insecure -X POST "https://$HARBOR_HOST:$HARBOR_PORT/api/chartrepo/library/charts" -u "$HARBOR_USER:$HARBOR_PASS" -H "Content-Type: multipart/form-data" -H "accept: application/json" -F "chart=@${TARBALL};type=application/x-compressed-tar"`
-    logMessage "uploadTarball" "'$RES'"
+    TASKNM=uploadTarball
+    logMessage "$TASKNM" "Upoad tarball '$TARBALL' to Harbor."
+    if [ -f "$TARBALL" ]; then
+        RES=`curl -s --insecure -X POST "https://$HARBOR_HOST:$HARBOR_PORT/api/chartrepo/library/charts" -u "$HARBOR_USER:$HARBOR_PASS" -H "Content-Type: multipart/form-data" -H "accept: application/json" -F "chart=@${TARBALL};type=application/x-compressed-tar"`
+        logMessage "$TASKNM" "'$RES'"
+    else
+        logMessage "$TASKNM" "'$TARBALL' not existed!"
+        exitTask "$TASKNM" 1
+    fi
 }
 
 ##################################################
@@ -102,22 +118,27 @@ function uploadTarball {
 function checkDockerCompose {
     CURDIR=$WORK_DIR/$DOCKER_DIR
     BAKDIR=$BACK_DIR/$DOCKER_DIR
+    TASKNM=checkDockerCompose
 
     # Check '$DOCKER_DIR' directory is Empty or not
     if [ ! "$(ls -A $CURDIR)" ]; then
-        #logMessage "checkDockerCompose" "'$DOCKER_DIR' directory is Empty!"
+	if [ "$DEBUG" = True ] ; then
+            logMessage "$TASKNM" "'$DOCKER_DIR' directory is Empty!"
+	fi
         exitTask "-" 1
     fi
 
     # '$DOCKER_DIR' directory is not empty, and find valid YAML file
     for FN in "$CURDIR"/* ; do
-        #echo $FN
+        if [ "$DEBUG" = True ] ; then
+            logMessage "$TASKNM" "Find[$FN]"
+        fi
         if [[ "$FN" = *"$LOG"* ]] ; then
             continue
         fi
         RES=`yq eval "(.services[] | key)" $FN 2>&1`
         if [ ! "$?" = "0" ] ; then
-            logMessage "checkDockerCompose" "'$RES'"
+            logMessage "$TASKNM" "'$RES'"
             exitTask "-" 1
         fi
         if [ ! "$RES" = "" ] ; then
@@ -127,15 +148,17 @@ function checkDockerCompose {
         fi
     done
     if [ "$FNAME" = "" ] ; then
-        #logMessage "checkDockerCompose" "'$DOCKER_DIR' directory has no valid Docker Compose YAML file!"
+	if [ "$DEBUG" = True ] ; then
+            logMessage "$TASKNM" "'$DOCKER_DIR' directory has no valid Docker Compose YAML file!"
+	fi
         exitTask "-" 1
     fi
 
     # Check the work YAML and backup YAML is the same one or not
     RES=`diff -r $CURDIR $BAKDIR`
     if [ ! "$RES" = "" ] ; then
-        logMessage "checkDockerCompose" "Begin process '$FNAME'."
-        logMessage "checkDockerCompose" "Use '$SERVICE' as service name."
+        logMessage "$TASKNM" "Begin process '$FNAME'."
+        logMessage "$TASKNM" "Use '$SERVICE' as service name."
 
         # Convert process
         procDocker2K8s
@@ -149,7 +172,15 @@ function checkDockerCompose {
         cp -p -a $WORK_DIR/$DOCKER_DIR $BACK_DIR
         cp -p -a $WORK_DIR/$K8S_DIR $BACK_DIR
         cp -p -a $WORK_DIR/$HELM_DIR $BACK_DIR
+	if [ "$DEBUG" = True ] ; then
+            logMessage "$TASKNM" "cp -p -a $WORK_DIR/$DOCKER_DIR $BACK_DIR"
+            logMessage "$TASKNM" "cp -p -a $WORK_DIR/$K8s_DIR $BACK_DIR"
+            logMessage "$TASKNM" "cp -p -a $WORK_DIR/$HELM_DIR $BACK_DIR"
+        fi
         exitTask "Process End." 0
+    fi
+    if [ "$DEBUG" = True ] ; then
+        logMessage "$TASKNM" "The work YAML and backup YAML is the same one, skip processing."
     fi
 }
 
@@ -157,11 +188,12 @@ function checkDockerCompose {
 function checkK8sResource {
     CURDIR=$WORK_DIR/$K8S_DIR
     BAKDIR=$BACK_DIR/$K8S_DIR
+    TASKNM=checkK8sResource
 
     # Check the work K8s resources and backup K8s resources are the same one or not
     RES=`diff -r $CURDIR $BAKDIR`
     if [ ! "$RES" = "" ] ; then
-        logMessage "checkK8sResource" "Begin process K8s resource files."
+        logMessage "$TASKNM" "Begin process K8s resource files."
 
         # Convert process
         procK8s2Helm
@@ -172,7 +204,14 @@ function checkK8sResource {
         rm -r -f $BACK_DIR/$HELM_DIR
         cp -p -a $WORK_DIR/$K8S_DIR $BACK_DIR
         cp -p -a $WORK_DIR/$HELM_DIR $BACK_DIR
+	if [ "$DEBUG" = True ] ; then
+            logMessage "$TASKNM" "cp -p -a $WORK_DIR/$K8s_DIR $BACK_DIR"
+            logMessage "$TASKNM" "cp -p -a $WORK_DIR/$HELM_DIR $BACK_DIR"
+	fi
         exitTask "Process End." 0
+    fi
+    if [ "$DEBUG" = True ] ; then
+        logMessage "$TASKNM" "The work K8s resources and backup K8s resources are the same, skip processing."
     fi
 }
 
@@ -180,11 +219,12 @@ function checkK8sResource {
 function checkHelmChart {
     CURDIR=$WORK_DIR/$HELM_DIR
     BAKDIR=$BACK_DIR/$HELM_DIR
+    TASKNM=checkHelmChart
 
     # Check the work Helm charts and backup Helm charts are the same one or not
     RES=`diff -r $CURDIR $BAKDIR`
     if [ ! "$RES" = "" ] ; then
-        logMessage "checkHelmChart" "Begin process K8s resource files."
+        logMessage "$TASKNM" "Begin process K8s resource files."
 
         # Convert process
         procHelm2Tarball
@@ -192,13 +232,26 @@ function checkHelmChart {
 
         rm -r -f $BACK_DIR/$HELM_DIR
         cp -p -a $WORK_DIR/$HELM_DIR $BACK_DIR
+	if [ "$DEBUG" = True ] ; then
+            logMessage "$TASKNM" "cp -p -a $WORK_DIR/$HELM_DIR $BACK_DIR"
+	fi
         exitTask "Process End." 0
+    fi
+    if [ "$DEBUG" = True ] ; then
+        logMessage "$TASKNM" "the work Helm charts and backup Helm charts are the same, skip processing."
     fi
 }
 
 ##################################################
 ### Main Process
+if [ "$DEBUG" = True ] ; then
+    logMessage "Main" "Begin."
+fi
 checkDockerCompose
 checkK8sResource
 checkHelmChart
+if [ "$DEBUG" = True ] ; then
+    logMessage "Main" "End."
+    exitTask "Main" 0
+fi
 
