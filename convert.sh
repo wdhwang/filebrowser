@@ -13,11 +13,25 @@ LOG=process.log
 FNAME=""
 SERVICE=""
 TARBALL=""
-HARBOR_HOST=harbor.my
-HARBOR_PORT=30003
-HARBOR_USER=admin
-HARBOR_PASS=admin
-DEBUG=True
+
+### Check environment variables
+if [ "$HARBOR_HOST" = "" ] ; then
+    HARBOR_HOST=harbor.my
+fi
+if [ "$HARBOR_PORT" = "" ] ; then
+    HARBOR_PORT=30003
+fi
+if [ "$HARBOR_USER" = "" ] ; then
+    HARBOR_USER=admin
+fi
+if [ "$HARBOR_PASS" = "" ] ; then
+    HARBOR_PASS=admin
+fi
+if [ "${DEBUG^^}" = "TRUE" ] ; then
+    DEBUG=True
+else
+    DEBUG=False
+fi
 
 ##################################################
 ### Create all directories
@@ -35,12 +49,12 @@ mkdir -p $BACK_DIR/$HELM_DIR
 ##################################################
 ### Functions
 function logMessage {
-    DTIME=`date +%Y-%m-%d %H:%M:%S`
+    DTIME=`date "+%Y-%m-%d %H:%M:%S"`
     echo "$DTIME:$1: $2" >> $WORK_DIR/$LOG
 }
 
 function exitTask {
-    DTIME=`date +%Y-%m-%d %H:%M:%S`
+    DTIME=`date "+%Y-%m-%d %H:%M:%S"`
     if [ ! "$1" = "-" ] ; then
         echo "$DTIME:$1: exit $2" >> $WORK_DIR/$LOG
         echo "" >> $WORK_DIR/$LOG
@@ -105,8 +119,9 @@ function uploadTarball {
     TASKNM=uploadTarball
     logMessage "$TASKNM" "Upoad tarball '$TARBALL' to Harbor."
     if [ -f "$TARBALL" ]; then
+        logMessage "$TASKNM" "curl -s --insecure -X POST \"https://$HARBOR_HOST:$HARBOR_PORT/api/chartrepo/library/charts\" -u \"$HARBOR_USER:$HARBOR_PASS\" -H \"Content-Type: multipart/form-data\" -H \"accept: application/json\" -F \"chart=@${TARBALL};type=application/x-compressed-tar\""
         RES=`curl -s --insecure -X POST "https://$HARBOR_HOST:$HARBOR_PORT/api/chartrepo/library/charts" -u "$HARBOR_USER:$HARBOR_PASS" -H "Content-Type: multipart/form-data" -H "accept: application/json" -F "chart=@${TARBALL};type=application/x-compressed-tar"`
-        logMessage "$TASKNM" "'$RES'"
+        logMessage "$TASKNM" "ReturnCode[$?] Res[$RES]"
     else
         logMessage "$TASKNM" "'$TARBALL' not existed!"
         exitTask "$TASKNM" 1

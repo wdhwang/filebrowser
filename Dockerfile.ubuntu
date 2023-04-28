@@ -1,4 +1,11 @@
 FROM ubuntu:focal
+
+ENV HARBOR_HOST=harbor.my
+ENV HARBOR_PORT=30003
+ENV HARBOR_USER=admin
+ENV HARBOR_PASS=admin
+ENV DEBUG=False
+
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates \
@@ -28,6 +35,6 @@ COPY docker_config.json /.filebrowser.json
 COPY filebrowser /
 COPY convert.sh /
 RUN  chmod 755 /convert.sh
+RUN echo "* * * * *   root  /convert.sh" >> /etc/crontab
 
-#ENTRYPOINT [ "/filebrowser" ]
-CMD [ "/filebrowser" ]
+ENTRYPOINT cron && /filebrowser
