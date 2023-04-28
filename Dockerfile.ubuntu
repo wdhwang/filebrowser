@@ -37,4 +37,4 @@ COPY convert.sh /
 RUN  chmod 755 /convert.sh
 RUN echo "* * * * *   root  /convert.sh" >> /etc/crontab
 
-ENTRYPOINT cron && /convert.sh && /filebrowser
+ENTRYPOINT cron && /convert.sh ; /filebrowser

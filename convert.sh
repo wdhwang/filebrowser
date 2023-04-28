@@ -46,6 +46,8 @@ mkdir -p $BACK_DIR/$DOCKER_DIR
 mkdir -p $BACK_DIR/$K8S_DIR
 mkdir -p $BACK_DIR/$HELM_DIR
 
+touch $WORK_DIR/$LOG
+
 ##################################################
 ### Functions
 function logMessage {
