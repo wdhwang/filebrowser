@@ -20,7 +20,7 @@ RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/s
     ./get_helm.sh
 RUN curl -s -L https://github.com/kubernetes/kompose/releases/download/v1.28.0/kompose-linux-amd64 -o /usr/local/bin/kompose && \
     chmod 755 /usr/local/bin/kompose
-RUN wget -qO- https://github.com/arttor/helmify/releases/download/v0.3.22/helmify_0.3.22_Linux_64-bit.tar.gz | tar xfz - -C /usr/local/bin
+RUN wget -qO- https://github.com/arttor/helmify/releases/download/v0.4.3/helmify_0.4.3_Linux_64-bit.tar.gz | tar xfz - -C /usr/local/bin
 RUN chmod 755 /usr/local/bin/helmify
 RUN wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && \
     chmod 755 /usr/local/bin/yq
