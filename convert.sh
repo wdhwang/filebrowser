@@ -16,7 +16,7 @@ TARBALL=""
 
 ### Check environment variables
 if [ "$HARBOR_HOST" = "" ] ; then
-    HARBOR_HOST=harbor.my
+    HARBOR_HOST=msmp.my
 fi
 if [ "$HARBOR_PORT" = "" ] ; then
     HARBOR_PORT=30003
