@@ -1,6 +1,6 @@
 FROM ubuntu:focal
 
-ENV HARBOR_HOST=harbor.my
+ENV HARBOR_HOST=msmp.my
 ENV HARBOR_PORT=30003
 ENV HARBOR_USER=admin
 ENV HARBOR_PASS=admin
