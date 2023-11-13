@@ -1,12 +1,15 @@
-FROM ubuntu:focal
+FROM ubuntu:jammy
+
+LABEL kompose.service.type="NodePort"
+LABEL kompose.service.nodeport.port="30011"
 
 ENV HARBOR_HOST=msmp.my
 ENV HARBOR_PORT=30003
 ENV HARBOR_USER=admin
 ENV HARBOR_PASS=admin
 ENV DEBUG=False
-ENV KOMPOSE=1.28.0
-ENV HELMIFY=0.4.3
+ENV KOMPOSE=v1.31.2
+ENV HELMIFY=v0.4.8
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
@@ -20,9 +23,9 @@ RUN apt-get update && \
 RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && \
     chmod 700 get_helm.sh && \
     ./get_helm.sh
-RUN curl -s -L https://github.com/kubernetes/kompose/releases/download/v${KOMPOSE}/kompose-linux-amd64 -o /usr/local/bin/kompose && \
+RUN curl -s -L https://github.com/kubernetes/kompose/releases/download/${KOMPOSE}/kompose-linux-amd64 -o /usr/local/bin/kompose && \
     chmod 755 /usr/local/bin/kompose
-RUN wget -qO- https://github.com/arttor/helmify/releases/download/v${HELMIFY}/helmify_${HELMIFY}_Linux_64-bit.tar.gz | tar xfz - -C /usr/local/bin
+RUN wget -qO- https://github.com/arttor/helmify/releases/download/${HELMIFY}/helmify_Linux_x86_64.tar.gz | tar xfz - -C /usr/local/bin
 RUN chmod 755 /usr/local/bin/helmify
 RUN wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && \
     chmod 755 /usr/local/bin/yq
